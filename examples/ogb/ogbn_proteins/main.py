@@ -10,6 +10,7 @@ import numpy as np
 from ogb.nodeproppred import Evaluator
 from utils.ckpt_util import save_ckpt
 from utils.data_util import intersection, process_indexes
+import wandb
 import logging
 
 
@@ -135,6 +136,7 @@ def multi_evaluate(valid_data_list, dataset, model, evaluator, device):
 
 def main():
     args = ArgsInit().save_exp()
+    wandb.init(project="reproduce-resgcn", entity="ductuan024")
 
     if args.use_gpu:
         device = torch.device("cuda:" + str(args.device)) if torch.cuda.is_available() else torch.device("cpu")
@@ -187,7 +189,7 @@ def main():
 
         epoch_loss = train(data, dataset, model, optimizer, criterion, device)
         logging.info('Epoch {}, training loss {:.4f}'.format(epoch, epoch_loss))
-
+        wandb.log({"loss": epoch_loss})
         model.print_params(epoch=epoch)
 
         result = multi_evaluate(valid_data_list, dataset, model, evaluator, device)
@@ -198,7 +200,9 @@ def main():
         train_result = result['train']['rocauc']
         valid_result = result['valid']['rocauc']
         test_result = result['test']['rocauc']
-
+        wandb.log({"train_rocauc" : train_result,
+                    "valid_rocauc" : valid_result,
+                    "test_rocauc" : test_result})
         if valid_result > results['highest_valid']:
             results['highest_valid'] = valid_result
             results['final_train'] = train_result
@@ -217,7 +221,7 @@ def main():
     end_time = time.time()
     total_time = end_time - start_time
     logging.info('Total time: {}'.format(time.strftime('%H:%M:%S', time.gmtime(total_time))))
-
+    wandb.finish()
 
 if __name__ == "__main__":
     main()
